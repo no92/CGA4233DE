@@ -6,9 +6,10 @@ from requests import Session
 
 LOGIN = '/api/v1/session/login'
 LOGOUT = '/api/v1/session/logout'
+SESSION_INIT = '/api/v1/session/menu'
 FIREWALL = '/api/v1/firewall'
 GET_CALLS = '/api/v1/phone_calllog/1,2/CallTbl'
-CSRF_TOKEN = '/api/v1/host/AssociatedDevices5'
+CSRF_TOKEN = '/api/v1/wifi/1/SSIDEnable'
 GET_CONNECTED_DEVICES = '/api/v1/sta_lan_status'
 
 class CGA4233DE:
@@ -16,7 +17,7 @@ class CGA4233DE:
 		self.addr = addr
 		self.username = username
 		self.password = password
-		self.headers = {'User-Agent': 'Mozilla/5.0', 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8', 'X-CSRF-TOKEN': '', 'X-Requested-With': 'XMLHttpRequest', 'Referer': addr}
+		self.headers = {'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8', 'X-CSRF-TOKEN': '', 'X-Requested-With': 'XMLHttpRequest', 'Referer': addr}
 
 	def get(self, endpoint, timestamp = False):
 		if(timestamp):
@@ -58,12 +59,19 @@ class CGA4233DE:
 				print(response)
 			sys.exit(1)
 
+		response = self.get(SESSION_INIT, timestamp=True)
+		assert(response['error'] == 'ok')
+
 	def logout(self):
 		self.post(LOGOUT)
 
 	def get_csrf_token(self):
 		response = self.get(CSRF_TOKEN, timestamp=True)
-		self.headers['X-CSRF-TOKEN'] = response['token']
+		if 'error' in response and response['error'] == 'error':
+			print("CSRF response: {}".format(response['message']))
+			sys.exit(1)
+		else:
+			self.headers['X-CSRF-TOKEN'] = response['token']
 		return self.headers['X-CSRF-TOKEN']
 
 	def get_firewall(self):
@@ -72,9 +80,9 @@ class CGA4233DE:
 
 	def set_firewall(self, turn_on):
 		if(turn_on):
-			req = self.post(FIREWALL, data={'FirewallLevel': 'on', 'FirewallLevelV6': 'on'})
+			self.post(FIREWALL, data={'FirewallLevel': 'on', 'FirewallLevelV6': 'on'})
 		else:
-			req = self.post(FIREWALL, data={'FirewallLevel': 'off', 'FirewallLevelV6': 'off'})
+			self.post(FIREWALL, data={'FirewallLevel': 'off', 'FirewallLevelV6': 'off'})
 
 	def get_calls(self):
 		return self.get(GET_CALLS, timestamp=True)['0']['data']['CallTbl']
